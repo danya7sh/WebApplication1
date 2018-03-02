@@ -1,0 +1,192 @@
+﻿@model IEnumerable<WebApplication1.Models.Phone>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<style>
+    th.sortable {
+        cursor: pointer;
+    }
+
+        th.sortable:before {
+            content: '▾';
+            color: #3366cc;
+        }
+
+        th.sortable.sorted:before {
+            color: #00cc00;
+        }
+</style>
+
+<br />
+<table class="table table-hover" id="myTable">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Name)</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Company)</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Price)</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            int i = 1;
+            foreach (var item in Model)
+            {
+                <tr>
+                    <th scope="row">@i</th>
+                    <td hidden>@Html.DisplayFor(modelItem => item.Id)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Company)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Price)</td>
+                    <td hidden>@Html.DisplayFor(modelItem => item.CurrentDate)</td>
+                    <td hidden>@Html.DisplayFor(modelItem => item.CreatedDate)</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-success">Edit</a>
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info">Details</a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger">Delete</a>
+                    </td>
+                </tr>
+                i++;
+            }
+        }
+    </tbody>
+</table>
+<a asp-action="Create" class="btn btn-outline-primary">Create New</a>
+<br />
+<br />
+<br />
+<br />
+<div id="target"></div>
+
+
+
+<script id="template" type="text/ractive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col" class="sortable" class-sorted="sortColumn === 'name'" on-click="@@.sort('name')">Name</th>
+                <th scope="col" class="sortable" class-sorted="sortColumn === 'company'" on-click="@@.sort('company')">Company</th>
+                <th scope="col" class="sortable" class-sorted="sortColumn === 'price'" on-click="@@.sort('price')">Price</th>
+                <th scope="col" class="sortable" class-sorted="sortColumn === 'currentDate'" on-click="@@.sort('currentDate')">CurrentDate</th>
+                <th scope="col" class="sortable" class-sorted="sortColumn === 'createdDate'" on-click="@@.sort('createdDate')">CreatedDate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each sort( phones ): num}}
+            <tr>
+                <th scope="row">{{num + 1}}</th>
+                <td hidden>{{id}}</td>
+                <td>{{name}}</td>
+                <td>{{company}}</td>
+                <td>{{price}}</td>
+                <td>{{currentDate}}</td>
+                <td>{{createdDate}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+</script>
+
+
+
+<script>
+
+    function toShortDate(str) {
+        var date = new Date(str);
+        return date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear();
+    };
+
+    function SpecForToShortDate(str) {
+        var date = new Date(str);
+        return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
+    };
+
+    var ractive, phones = [];
+
+    var tbody = document.getElementById("myTable").tBodies[0];
+
+    for (var i = 0; i < tbody.rows.length; i++) {
+        var j = {};
+
+        j.id = tbody.rows[i].cells[1].innerHTML;
+        j.name = tbody.rows[i].cells[2].innerHTML;
+        j.company = tbody.rows[i].cells[3].innerHTML;
+        j.price = +tbody.rows[i].cells[4].innerHTML;
+        j.currentDate = SpecForToShortDate(tbody.rows[i].cells[5].innerHTML);
+        j.createdDate = SpecForToShortDate(tbody.rows[i].cells[6].innerHTML);
+
+        phones.push(j);
+    }
+
+    ractive = new Ractive({
+        target: '#target',
+        template: '#template',
+        data: {
+            phones: phones,
+            sortColumn: 'price',
+            sort: function (array) {
+
+                var column = this.get('sortColumn');
+
+                var arr = array.slice();
+
+                if (column === 'currentDate' || column === 'createdDate') {
+
+                    return arr.sort(function (a, b) {
+                        return new Date(a[column]) < new Date(b[column]) ? -1 : 1;
+                    });
+
+                }
+
+                return arr.sort(function (a, b) {
+                    return a[column] < b[column] ? -1 : 1;
+                });
+
+            }
+        },
+        sort: function (column) {
+
+            this.set('sortColumn', column);
+
+        }
+    });
+
+
+
+    let hubConnection = new signalR.HubConnection("/chat");
+
+    hubConnection.on('Create', data => {
+
+        data.currentDate = toShortDate(data.currentDate);
+        data.createdDate = toShortDate(data.createdDate);
+        ractive.push('phones', data);
+
+    });
+
+    hubConnection.on('Edit', data => {
+
+        var i;
+        for (i = 0; ractive.get('phones.' + i + '.id') != data.id; i++);
+
+        data.currentDate = toShortDate(data.currentDate);
+        data.createdDate = toShortDate(data.createdDate);
+        ractive.splice('phones', i, 1, data);
+
+    });
+
+    hubConnection.on('Delete', data => {
+
+        var i;
+        for (i = 0; ractive.get('phones.' + i + '.id') != data.id; i++);
+
+        ractive.splice('phones', i, 1);
+
+    });
+
+    hubConnection.start();
+
+</script>

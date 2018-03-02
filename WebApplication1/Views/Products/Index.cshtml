@@ -1,0 +1,271 @@
+﻿@model IEnumerable<WebApplication1.Models.Product>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<br />
+<table class="table table-hover" id="myTable">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Name)</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Category)</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Supplier)</th>
+            <th scope="col">@Html.DisplayNameFor(model => model.Price)</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            int i = 1;
+            foreach (var item in Model)
+            {
+                <tr>
+                    <th scope="row">@i</th>
+                    <td hidden>@Html.DisplayFor(modelItem => item.Id)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Name)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Category)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Supplier)</td>
+                    <td>@Html.DisplayFor(modelItem => item.Price)</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-success">Edit</a>
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info">Details</a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger">Delete</a>
+                    </td>
+                </tr>
+                i++;
+            }
+        }
+    </tbody>
+</table>
+<a asp-action="Create" class="btn btn-outline-primary">Create New</a>
+<br />
+<br />
+<br />
+<br />
+<div id="target"></div>
+
+
+
+<script id="template" type="text/ractive">
+
+    <div class="row">
+        <div class="col">
+
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="selectNames">Name</label>
+                </div>
+                <select class="custom-select" id="selectNames" on-change="@@.filter('selectedName')"
+                        value="{{selectedName}}">
+                    {{#each names}}
+                    <option>{{name}}</option>
+                    {{/each}}
+                </select>
+            </div>
+
+        </div>
+        <div class="col">
+
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="selectNames">Category</label>
+                </div>
+                <select class="custom-select" id="selectNames" on-change="@@.filter('selectedCategory')"
+                        value="{{selectedCategory}}">
+                    {{#each categories}}
+                    <option>{{category}}</option>
+                    {{/each}}
+                </select>
+            </div>
+
+        </div>
+        <div class="col">
+
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="selectNames">Supplier</label>
+                </div>
+                <select class="custom-select" id="selectNames" on-change="@@.filter('selectedSupplier')"
+                        value="{{selectedSupplier}}">
+                    {{#each suppliers}}
+                    <option>{{supplier}}</option>
+                    {{/each}}
+                </select>
+            </div>
+
+        </div>
+        <div class="col">
+
+            <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="selectNames">Price</label>
+                </div>
+                <select class="custom-select" id="selectNames" on-change="@@.filter('selectedPrice')"
+                        value="{{selectedPrice}}">
+                    {{#each prices}}
+                    <option>{{price}}</option>
+                    {{/each}}
+                </select>
+            </div>
+
+        </div>
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Name</th>
+                <th scope="col">Category</th>
+                <th scope="col">Supplier</th>
+                <th scope="col">Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each products}}
+            <tr>
+                {{>name}}
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+
+</script>
+
+<script>
+
+    var ractive, products = [];
+
+    var tbody = document.getElementById("myTable").tBodies[0];
+
+    for (var i = 0; i < tbody.rows.length; i++) {
+        var j = {};
+
+        j.id = tbody.rows[i].cells[1].innerHTML;
+        j.name = tbody.rows[i].cells[2].innerHTML;
+        j.category = tbody.rows[i].cells[3].innerHTML;
+        j.supplier = tbody.rows[i].cells[4].innerHTML;
+        j.price = +tbody.rows[i].cells[5].innerHTML;
+
+        products.push(j);
+    }
+
+    var item =
+
+        '<th scope="row">{{@@index+1}}</th>' +
+        '<td hidden>{{.id}}</td>' +
+        '<td>{{.name}}</td>' +
+        '<td>{{.category}}</td>' +
+        '<td>{{.supplier}}</td>' +
+        '<td>{{.price}}</td>';
+
+    ractive = new Ractive({
+        target: '#target',
+        template: '#template',
+        data: {
+            products: products,
+            names: [{ name: 'default' }],
+            categories: [{ category: 'default' }],
+            suppliers: [{ supplier: 'default' }],
+            prices: [{ price: 'default' }],
+            oldValues: '',
+        },
+        partials: {
+            name: item
+        },
+        createSelects: function () {
+
+            var properties = ["name", "category", "supplier", "price"];
+
+            properties.forEach(function (property, i, arr) {
+
+                var values = [];
+
+                ractive.observe('products.*.' + property, function (newValue, oldValue, keypath) {
+
+                    if (!values.includes(newValue)) {
+
+                        values.push(newValue);
+
+                        var j = {}; j[property] = newValue;
+
+                        ractive.push(property === "category" ? "categories" : property + "s", j);
+                    }
+                });
+
+            });
+        },
+        filter: function (newValue) {
+
+            var values = ["selectedName", "selectedCategory", "selectedSupplier", "selectedPrice"];
+
+            if (values.every(function (value) {
+                return ractive.get(value) === "default";
+            })) {
+                ractive.resetPartial('name', item);
+                return;
+            }
+
+            //
+
+            if (this.get('oldValues'))
+                delete ractive.partials[this.get('oldValues')];
+
+            //
+
+            var newValues = "";
+
+            values.forEach(function (value, i, arr) {
+                newValues += ractive.get(value) === "default" ? "" : ractive.get(value);
+            });
+
+            ractive.partials[newValues] = item;
+
+            this.set('oldValues', newValues);
+
+            var properties = "";
+
+            values.forEach(function (value, i, arr) {
+                if (ractive.get(value) != "default")
+                    properties += "${." + value.slice(8).toLowerCase() + "}";
+            });
+
+            ractive.resetPartial('name', '{{>`' + properties + '`}}');
+        }
+    });
+
+    ractive.createSelects();
+
+
+
+    let hubConnection = new signalR.HubConnection("/chat");
+
+    hubConnection.on('Create', data => {
+
+        ractive.push('products', data);
+
+    });
+
+    hubConnection.on('Edit', data => {
+
+        var i;
+        for (i = 0; ractive.get('products.' + i + '.id') != data.id; i++);
+
+        ractive.splice('products', i, 1, data);
+
+    });
+
+    hubConnection.on('Delete', data => {
+
+        var i;
+        for (i = 0; ractive.get('products.' + i + '.id') != data.id; i++);
+
+        ractive.splice('products', i, 1);
+
+    });
+
+    hubConnection.start();
+
+</script>
